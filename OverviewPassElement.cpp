@@ -161,7 +161,8 @@ std::vector<UP<IPassElement>> COverviewShadowPassElement::draw() {
         ScrollOverview::Config::setValue("decoration:shadow:render_power", *previousRenderPower);
     });
 
-    Render::GL::g_pHyprOpenGL->renderRoundedShadow(data.fullBox, data.rounding, data.roundingPower, data.range, data.color, std::clamp(data.alpha, 0.F, 1.F));
+    // Overview shadows use precomputed boxes and no current window, so no workspace presentation is needed.
+    Render::GL::g_pHyprOpenGL->renderRoundedShadow(data.fullBox, data.rounding, data.roundingPower, data.range, data.color, std::clamp(data.alpha, 0.F, 1.F), nullptr);
 
     return {};
 }
