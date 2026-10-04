@@ -263,7 +263,7 @@ static void roundStandaloneWindowPassElements(const PHLWINDOW& window, PHLMONITO
     if (rounding <= 0)
         return;
 
-    auto& passElements = g_pHyprRenderer->m_renderPass.m_passElements;
+    auto& passElements = Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).m_passElements;
     for (size_t i = firstElement; i < passElements.size(); ++i) {
         const auto& passElement = passElements[i];
         if (!passElement.element)
@@ -352,7 +352,7 @@ static void blockOverviewWindowBlurOptimization(const PHLWINDOW& window, size_t 
     if (!window)
         return;
 
-    auto& passElements = g_pHyprRenderer->m_renderPass.m_passElements;
+    auto& passElements = Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).m_passElements;
     for (size_t i = firstElement; i < passElements.size(); ++i) {
         const auto& passElement = passElements[i];
         if (!passElement.element)
@@ -376,7 +376,7 @@ static void scaleOverviewChildSurfaceGeometry(const PHLWINDOW& window, const Vec
         return;
 
     const Vector2D SURFACESCALE = targetSize / REPORTEDSIZE;
-    auto&          passElements = g_pHyprRenderer->m_renderPass.m_passElements;
+    auto&          passElements = Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).m_passElements;
 
     for (size_t i = firstElement; i < passElements.size(); ++i) {
         const auto& passElement = passElements[i];
@@ -419,7 +419,7 @@ static void raiseWindowPopups(const PHLWINDOW& window, size_t firstElement) {
     if (!window)
         return;
 
-    auto& passElements = g_pHyprRenderer->m_renderPass.m_passElements;
+    auto& passElements = Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).m_passElements;
     if (firstElement >= passElements.size())
         return;
 
@@ -571,7 +571,7 @@ static void renderOverviewHyprbarDecoration(SOverviewCustomDecorationRenderState
         previousReplyData->lastReply = *REPLY;
     decoration->onPositioningReply(*REPLY);
 
-    decoration->draw(monitor, PARTOFWINDOW ? 1.F : metrics.targetOpacity, dynamicPointerCast<Workspace::CWorkspacePresentable>(window->m_workspace));
+    decoration->draw(g_pHyprRenderer->context(), monitor, PARTOFWINDOW ? 1.F : metrics.targetOpacity, window->presentation().renderPresentation(dynamicPointerCast<Workspace::CWorkspacePresentable>(window->m_workspace)));
 
     state.queuedAny = true;
     state.restoreFns.emplace_back([window, decoration, WORKSPACE, OVERRIDEWORKSPACEOFFSET, previousWindowPos, previousWindowSize, previousWorkspaceOffset, previousReply,
@@ -643,7 +643,7 @@ static void renderOverviewWindowShadow(PHLMONITOR monitor, const PHLWINDOW& wind
     if (std::ranges::none_of(shadowColor.m_colors, [](const CHyprColor& color) { return color.a > 0.F; }))
         return;
 
-    g_pHyprRenderer->m_renderPass.add(makeUnique<COverviewShadowPassElement>(COverviewShadowPassElement::SData{
+    Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<COverviewShadowPassElement>(COverviewShadowPassElement::SData{
         .monitor       = monitor,
         .fullBox       = shadowBox,
         .cutoutBox     = cutoutBox.round(),
@@ -688,7 +688,7 @@ static void renderOverviewWindowBorder(PHLMONITOR monitor, const PHLWINDOW& wind
         data.lerp     = GRADIENT.progress;
     } else
         data.grad1 = grad;
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
+    Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CBorderPassElement>(data));
 }
 
 static void renderOverviewGroupTabIndicators(PHLMONITOR monitor, const PHLWINDOW& window, const CBox& windowBox, const SOverviewWindowMetrics& metrics, float alpha) {
@@ -760,7 +760,7 @@ static void renderOverviewGroupTabIndicators(PHLMONITOR monitor, const PHLWINDOW
         data.color         = color;
         data.round         = rounding;
         data.roundingPower = PROUNDINGPOWER;
-        g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(data));
+        Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CRectPassElement>(data));
     }
 }
 
@@ -863,7 +863,7 @@ static void renderOverviewGroupTabTitles(PHLMONITOR monitor, const PHLWINDOW& wi
         data.tex = titleTex;
         data.box = textBox;
         data.a   = 1.F;
-        g_pHyprRenderer->m_renderPass.add(makeUnique<CTexPassElement>(data));
+        Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CTexPassElement>(data));
     }
 }
 
@@ -904,9 +904,9 @@ static void renderOverviewGroupTabs(PHLMONITOR monitor, const PHLWINDOW& window,
     modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_TRANSLATE, workspaceBox.pos());
 
     GROUPBAR->updateWindow(window);
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = modif}));
-    GROUPBAR->draw(monitor, metrics.targetOpacity, dynamicPointerCast<Workspace::CWorkspacePresentable>(window->m_workspace));
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = Render::SRenderModifData{}}));
+    Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = modif}));
+    GROUPBAR->draw(g_pHyprRenderer->context(), monitor, metrics.targetOpacity, window->presentation().renderPresentation(dynamicPointerCast<Workspace::CWorkspacePresentable>(window->m_workspace)));
+    Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = Render::SRenderModifData{}}));
     renderOverviewGroupTabIndicators(monitor, window, windowBox, metrics, metrics.targetOpacity);
 }
 
@@ -934,17 +934,17 @@ static SOverviewCustomDecorationRenderState renderOverviewCustomDecorations(PHLM
         }
 
         if (!drewAny) {
-            g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = modif}));
+            Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = modif}));
             drewAny = true;
         }
 
         deco->updateWindow(window);
-        deco->draw(monitor, metrics.targetOpacity, dynamicPointerCast<Workspace::CWorkspacePresentable>(window->m_workspace));
+        deco->draw(g_pHyprRenderer->context(), monitor, metrics.targetOpacity, window->presentation().renderPresentation(dynamicPointerCast<Workspace::CWorkspacePresentable>(window->m_workspace)));
         state.queuedAny = true;
     }
 
     if (drewAny)
-        g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = Render::SRenderModifData{}}));
+        Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{.renderModif = Render::SRenderModifData{}}));
 
     return state;
 }
@@ -1039,10 +1039,10 @@ void renderOverviewWindow(const SRenderParams& params) {
             WORKSPACE->m_renderOffset->value() = previousWorkspaceOffset;
     });
 
-    const size_t firstWindowPassElement = g_pHyprRenderer->m_renderPass.m_passElements.size();
+    const size_t firstWindowPassElement = Render::IHyprRenderer::currentPass(g_pHyprRenderer->context()).m_passElements.size();
     const bool   usePrecomputedBlur     = shouldUsePrecomputedBlur(params.window, params.monitor, params.workspaceBox, &params.windowBox, params.dragged);
     // Keep the workspace presentation so floating offsets, alpha and blur match the window.
-    g_pHyprRenderer->renderWindow(params.window, params.monitor, dynamicPointerCast<Workspace::CWorkspacePresentable>(WORKSPACE), params.now, false, Render::RENDER_PASS_ALL, false, false);
+    g_pHyprRenderer->renderWindow(g_pHyprRenderer->context(), params.window, params.monitor, params.window->presentation().renderPresentation(dynamicPointerCast<Workspace::CWorkspacePresentable>(WORKSPACE)), params.now, false, Render::RENDER_PASS_ALL, false, false);
     const Vector2D targetWindowPosition = params.monitor->m_position + params.windowBox.pos() / params.monitor->m_scale;
     scaleOverviewChildSurfaceGeometry(params.window, targetWindowPosition, params.window->sizeAnimation()->value(), firstWindowPassElement);
     if (!usePrecomputedBlur)
