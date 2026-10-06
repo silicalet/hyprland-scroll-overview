@@ -625,7 +625,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     g_pScrollRenderWorkspaceHook = HyprlandAPI::createFunctionHook(
         SCROLLOVERVIEW_HANDLE,
-        findFnOrThrow("renderWorkspace", {"CHyprRenderer::renderWorkspace(", "IHyprRenderer::renderWorkspace("}),
+        // Hook the monitor/geometry overload, not the workspace/scene-mode overload.
+        findFnOrThrow("renderWorkspace", {"Render::IHyprRenderer::renderWorkspace(Render::CRenderContext&, Hyprutils::Memory::CSharedPointer<Monitor::CMonitor>,"}),
         rc<void*>(hkRenderWorkspace));
 
     g_pScrollScheduleFrameHook = HyprlandAPI::createFunctionHook(
